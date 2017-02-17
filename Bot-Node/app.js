@@ -38,23 +38,23 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
             if (garmentStyleEntity) {
                 // garment style entity detected, continue to next step
                 // session.send('have garment style: \'%s\'',garmentStyleEntity.entity);
-                session.dialogData.searchType = 'garmentstyle';
+                // session.dialogData.searchType = 'garmentstyle';//just a parameter for next function
                 next({ response: garmentStyleEntity.entity });                
             } else {
-                // no entities detected, ask user for a destination
+                // no entities detected, ask user for a garment style, same as get parameter from Luis
                 builder.Prompts.text(session, 'Please enter garment style no');
             }
         },
         function (session, results) {
             var garmentStyleNo = results.response;
+            // we can get parameter from dialogData
             // var message = 'Looking for garment style';
             // if (session.dialogData.searchType === 'garmentstyle') {
             //     message += ' near %s airport...';
             // } else {
             //     message += ' in %s...';
             // }
-
-            // session.send(message, garmentStyleNo);
+            // session.send(garmentStyleNo);
 
             // Async search WebAPI
             StyleSearchHelper
@@ -64,6 +64,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
                     // session.send('I found %d hotels:', hotels.length);
                     // child function process the message attachment
                     var message = new builder.Message()
+                        .text(garmentStyleNo)
                         .attachmentLayout(builder.AttachmentLayout.carousel)
                         .attachments(GarmentStyles.map(garmentStyleAttachment));
 
@@ -74,41 +75,44 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
                 });
         }
     ])
-    // .matches('SearchFabric', (session, args) => {
-    //     // retrieve hotel name from matched entities
-    //     var hotelEntity = builder.EntityRecognizer.findEntity(args.entities, 'Hotel');
-    //     if (hotelEntity) {
-    //         session.send('Looking for reviews of \'%s\'...', hotelEntity.entity);
-    //         Store.searchHotelReviews(hotelEntity.entity)
-    //             .then((reviews) => {
-    //                 var message = new builder.Message()
-    //                     .attachmentLayout(builder.AttachmentLayout.carousel)
-    //                     .attachments(reviews.map(reviewAsAttachment));
-    //                 session.send(message);
-    //             });
-    //     }
-    // })
-    .matches('Hello', builder.DialogAction.send('Hi! Try asking me things like \'search germent style XXX\', \'search style XXX\' or \'style XXX\''))
+    .matches('SearchFabric', (session, args) => {
+        // retrieve hotel name from matched entities
+        var fabricEntity = builder.EntityRecognizer.findEntity(args.entities, 'FabricNo');
+        if (fabricEntity) {
+            session.send('Looking for reviews of \'%s\'...', fabricEntity.entity);
+
+            StyleSearchHelper
+            .searchHotelReviews(fabricEntity.entity)
+                .then((reviews) => {
+                    var message = new builder.Message()
+                        .attachmentLayout(builder.AttachmentLayout.carousel)
+                        .attachments(reviews.map(fabricAttachment));
+                    session.send(message);
+                });
+        }
+    })
+    .matches('Hello', builder.DialogAction.send('hi! try asking me things like \'search germent style XXX\', \'search style XXX\' or \'style XXX\''))
     .onDefault((session) => {
         session.send('sorry , i have no idea what you talking about.', session.message.text);
     }));
 
-if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
-    bot.use({
-        botbuilder: function (session, next) {
-            spellService
-                .getCorrectedText(session.message.text)
-                .then(text => {
-                    session.message.text = text;
-                    next();
-                })
-                .catch((error) => {
-                    console.error(error);
-                    next();
-                });
-        }
-    });
-}
+//
+// if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
+//     bot.use({
+//         botbuilder: function (session, next) {
+//             spellService
+//                 .getCorrectedText(session.message.text)
+//                 .then(text => {
+//                     session.message.text = text;
+//                     next();
+//                 })
+//                 .catch((error) => {
+//                     console.error(error);
+//                     next();
+//                 });
+//         }
+//     });
+// }
 
 // garment style Helpers
 function garmentStyleAttachment(garmentstyle) {
@@ -124,12 +128,15 @@ function garmentStyleAttachment(garmentstyle) {
         ]);
 }
 
-// function reviewAsAttachment(review) {
-//     return new builder.ThumbnailCard()
-//         .title(review.title)
-//         .text(review.text)
-//         .images([new builder.CardImage().url(review.image)]);
-// }
+// fabric style Helplers
+function fabricAttachment(review) {
+    return new builder.ThumbnailCard()
+        .title(review.title)
+        .text(review.text)
+        .images([
+            new builder.CardImage().url(review.image)
+        ]);
+}
 
 //=========================================================
 // Bots Dialogs
