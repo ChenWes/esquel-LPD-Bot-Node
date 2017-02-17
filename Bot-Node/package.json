@@ -1,0 +1,25 @@
+{
+  "name": "esquel-lpd-bot-node",
+  "version": "1.0.0",
+  "description": "Esquel LPD Project Bot,Use Microsoft Bot Framework Nodejs Development",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "keywords": [
+    "Bot",
+    "Framework"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ChenWes/esquel-LPD-Bot-Node.git"
+  },
+  "author": "WesChen",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.4.7",
+    "botbuilder": "^3.6.0",
+    "restify": "^4.3.0"
+  }
+}
