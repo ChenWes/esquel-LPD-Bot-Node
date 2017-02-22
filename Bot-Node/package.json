@@ -20,6 +20,7 @@
   "dependencies": {
     "bluebird": "^3.4.7",
     "botbuilder": "^3.6.0",
+    "httpntlm": "^1.7.4",
     "restify": "^4.3.0"
   }
 }
