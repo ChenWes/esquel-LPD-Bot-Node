@@ -2,6 +2,8 @@ var restify = require('restify');
 var builder = require('botbuilder');
 
 var StyleSearchHelper = require('./service/garment_style_search');
+var FabricSearchHelper = require('./service/fabric_search');
+var TrimSearchHelper = require('./service/trim_search');
 
 //=========================================================
 // Bot Setup
@@ -10,9 +12,9 @@ var StyleSearchHelper = require('./service/garment_style_search');
 // Setup Restify Server
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function () {
-   console.log('%s listening to %s', server.name, server.url); 
+    console.log('%s listening to %s', server.name, server.url);
 });
-  
+
 // Create chat bot
 var connector = new builder.ChatConnector({
     appId: process.env.MICROSOFT_APP_ID,
@@ -34,12 +36,12 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
             session.send('hi ,we are analyzing your message: \'%s\' for search garment style', session.message.text);
 
             // try extracting entities
-            var garmentStyleEntity = builder.EntityRecognizer.findEntity(args.entities, 'GarmentStyleNo');            
+            var garmentStyleEntity = builder.EntityRecognizer.findEntity(args.entities, 'GarmentStyleNo');
             if (garmentStyleEntity) {
                 // garment style entity detected, continue to next step
                 // session.send('have garment style: \'%s\'',garmentStyleEntity.entity);
                 // session.dialogData.searchType = 'garmentstyle';//just a parameter for next function
-                next({ response: garmentStyleEntity.entity });                
+                next({ response: garmentStyleEntity.entity });
             } else {
                 // no entities detected, ask user for a garment style, same as get parameter from Luis
                 builder.Prompts.text(session, 'Please enter garment style no');
@@ -47,6 +49,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
         },
         function (session, results) {
             var garmentStyleNo = results.response;
+            garmentStyleNo = garmentStyleNo.replace(/\s+/g, "");
             // we can get parameter from dialogData
             // var message = 'Looking for garment style';
             // if (session.dialogData.searchType === 'garmentstyle') {
@@ -60,81 +63,186 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
             StyleSearchHelper
                 .searchGarmentStyle(garmentStyleNo)
                 .then((GarmentStyles) => {
-                    // args
-                    // session.send('I found %d hotels:', hotels.length);
-                    // child function process the message attachment
-                    var message = new builder.Message()
-                        .text(garmentStyleNo)
-                        .attachmentLayout(builder.AttachmentLayout.carousel)
-                        .attachments(GarmentStyles.map(garmentStyleAttachment));
-
-                    session.send(message);
-
-                    // End
+                    //check garment style
+                    if (GarmentStyles && GarmentStyles.length == 0) {
+                        var message = new builder.Message()
+                            .text('can not found garment style \" %s \"', garmentStyleNo);
+                        session.send(message);
+                    }
+                    else {
+                        //foreach and send message
+                        for (var getstyle of GarmentStyles) {
+                            // add message
+                            var message = new builder.Message()
+                                .text(getstyle.linePlanProducts.productID + '(' + getstyle.linePlanProducts.productVersion + getstyle.linePlanProducts.productVersionSerialNo + ')')
+                                .attachmentLayout(builder.AttachmentLayout.carousel)
+                                .attachments(getstyle.linePlanProducts.productMaterialConfigs.map(garmentStyleColorwayAttachment));
+                            //send message
+                            session.send(message);
+                        }
+                    }
+                    // End dialog
                     session.endDialog();
                 });
         }
     ])
-    .matches('SearchFabric', (session, args) => {
-        // retrieve hotel name from matched entities
-        var fabricEntity = builder.EntityRecognizer.findEntity(args.entities, 'FabricNo');
-        if (fabricEntity) {
-            session.send('Looking for reviews of \'%s\'...', fabricEntity.entity);
+    .matches('SearchFabric', [
+        function (session, args, next) {
+            session.send('hi ,we are analyzing your message: \'%s\' for search fabric', session.message.text);
 
-            StyleSearchHelper
-            .searchHotelReviews(fabricEntity.entity)
-                .then((reviews) => {
-                    var message = new builder.Message()
-                        .attachmentLayout(builder.AttachmentLayout.carousel)
-                        .attachments(reviews.map(fabricAttachment));
-                    session.send(message);
+            // try extracting entities
+            var fabricEntity = builder.EntityRecognizer.findEntity(args.entities, 'FabricNo');
+            if (fabricEntity) {
+                next({ response: fabricEntity.entity });
+            } else {
+                // no entities detected, ask user for a fabric, same as get parameter from Luis
+                builder.Prompts.text(session, 'Please enter fabric no');
+            }
+        },
+        function (session, results) {
+            var fabricNo = results.response;
+            fabricNo = fabricNo.replace(/\s+/g, "");
+
+            // Async search WebAPI
+            FabricSearchHelper
+                .searchFabric(fabricNo)
+                .then((Fabrics) => {
+                    //check garment style
+                    if (Fabrics && Fabrics.length == 0) {
+                        var message = new builder.Message()
+                            .text('can not found fabric \" %s \"', fabricNo);
+                        session.send(message);
+                    }
+                    else {
+                        //foreach and send message                        
+                        for (var getfabric of Fabrics) {
+                            // add message
+                            var message = new builder.Message()
+                                .attachmentLayout(builder.AttachmentLayout.carousel)
+                                .attachments(Fabrics.map(fabricAttachment));
+                            //send message
+                            session.send(message);
+                        }
+                    }
+                    // End dialog
+                    session.endDialog();
                 });
         }
-    })
+    ])
+    .matches('SearchTrim', [
+        function (session, args, next) {
+            session.send('hi ,we are analyzing your message: \'%s\' for search trim', session.message.text);
+
+            // try extracting entities
+            var trimEntity = builder.EntityRecognizer.findEntity(args.entities, 'TrimNo');
+            if (trimEntity) {
+                next({ response: trimEntity.entity });
+            } else {
+                // no entities detected, ask user for a trim, same as get parameter from Luis
+                builder.Prompts.text(session, 'Please enter trim no');
+            }
+        },
+        function (session, results) {
+            var trimNo = results.response;
+            trimNo = trimNo.replace(/\s+/g, "");
+
+            // Async search WebAPI
+            TrimSearchHelper
+                .searchTrim(trimNo)
+                .then((Trims) => {
+                    //check trim
+                    if (Trims && Trims.length == 0) {
+                        var message = new builder.Message()
+                            .text('can not found trim \" %s \"', trimNo);
+                        session.send(message);
+                    }
+                    else {
+                        //foreach and send message
+                        // for (var gettrim of Trims) {
+                        // add message
+                        var message = new builder.Message()
+                            .attachmentLayout(builder.AttachmentLayout.carousel)
+                            .attachments(Trims.map(trimAttachment));
+                        //send message
+                        session.send(message);
+                        // }
+                    }
+                    // End dialog
+                    session.endDialog();
+                });
+        }
+    ])
     .matches('Hello', builder.DialogAction.send('hi! try asking me things like \'search germent style XXX\', \'search style XXX\' or \'style XXX\''))
     .onDefault((session) => {
-        session.send('sorry , i have no idea what you talking about.', session.message.text);
+        session.send('sorry , i have no idea what you talking about.\"%s\"', session.message.text);
     }));
 
-//
-// if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
-//     bot.use({
-//         botbuilder: function (session, next) {
-//             spellService
-//                 .getCorrectedText(session.message.text)
-//                 .then(text => {
-//                     session.message.text = text;
-//                     next();
-//                 })
-//                 .catch((error) => {
-//                     console.error(error);
-//                     next();
-//                 });
-//         }
-//     });
-// }
 
-// garment style Helpers
-function garmentStyleAttachment(garmentstyle) {
-    return new builder.HeroCard()
-        .title(garmentstyle.name)
-        .subtitle('%d stars. %d reviews. From $%d per night.', garmentstyle.rating, garmentstyle.numberOfReviews, garmentstyle.priceStarting)
-        .images([new builder.CardImage().url(garmentstyle.image)])
+if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
+    bot.use({
+        botbuilder: function (session, next) {
+            spellService
+                .getCorrectedText(session.message.text)
+                .then(text => {
+                    session.message.text = text;
+                    next();
+                })
+                .catch((error) => {
+                    console.error(error);
+                    next();
+                });
+        }
+    });
+}
+
+// garment style colorway to card Helpers
+function garmentStyleColorwayAttachment(colorway) {
+    return new builder.ThumbnailCard()
+        .title(colorway.colorway + "(" + colorway.optionNo + ")")
+        .subtitle(colorway.primaryFabricID)
+        .text(colorway.pluNumber)
+        .images([new builder.CardImage().url(colorway.PrimaryFabricImageUrl)])
         .buttons([
             new builder.CardAction()
-                .title('Primary Fabric')
+                .title('View Primary Fabric')
+                .type('imBack')
+                .value('search fabric ' + colorway.primaryFabricID),
+            new builder.CardAction()
+                .title('View Fabric Image')
                 .type('openUrl')
-                .value('https://www.bing.com/search?q=hotels+in+' + encodeURIComponent(garmentstyle.location))
+                .value(colorway.PrimaryFabricImageUrl)
         ]);
 }
 
-// fabric style Helplers
-function fabricAttachment(review) {
-    return new builder.ThumbnailCard()
-        .title(review.title)
-        .text(review.text)
+// fabric to card Helplers
+function fabricAttachment(fabric) {
+    return new builder.HeroCard()
+        .title(fabric.fabricID)
+        .subtitle(fabric.fabricNo)
+        .text(fabric.longDescriptions.join(' '))
         .images([
-            new builder.CardImage().url(review.image)
+            new builder.CardImage().url(fabric.imageURL)])
+        .buttons([
+            new builder.CardAction()
+                .title('View Image')
+                .type('openUrl')
+                .value(fabric.imageURL)
+        ]);
+}
+
+// trim to card Helplers
+function trimAttachment(trim) {
+    return new builder.HeroCard()
+        .title(trim.apparelTrimID)
+        .subtitle(trim.apparelTrimID)
+        .text(trim.longDescriptions.join(' '))
+        .images([
+            new builder.CardImage().url(trim.imageURL)])
+        .buttons([
+            new builder.CardAction()
+                .title('View Image')
+                .type('openUrl')
+                .value(trim.imageURL)
         ]);
 }
 

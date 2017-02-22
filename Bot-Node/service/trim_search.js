@@ -1,8 +1,7 @@
 var httpntlm = require('httpntlm');
 
 module.exports = {
-    searchGarmentStyle: function (garmentStyleNO) {
-
+    searchTrim: function (trimNO) {
         var queryEntity = {
             "filterType": "LEAF",
             "filters": [
@@ -10,11 +9,11 @@ module.exports = {
             ],
             "attributeName": "item_number",
             "searchOperator": "eq",
-            "filterValue": garmentStyleNO
+            "filterValue": trimNO
         }
 
         var options = {
-            url: 'http://getnt130.gfg1.esquel.com/InstantNoodle_SIT/Workbench/api/v1/styleproduct/1/1',
+            url: 'http://getnt130.gfg1.esquel.com/InstantNoodle_SIT/Workbench/api/v1/appareltrimlibrary/search/1/1',
             username: 'chenwes',
             password: 'Bot77@',
             domain: 'gfg1',
@@ -25,7 +24,7 @@ module.exports = {
             json: queryEntity
         };
 
-        var garmentstyles = [];
+        var trims = [];
 
         return new Promise(function (resolve, reject) {
             httpntlm.post(options,
@@ -36,16 +35,15 @@ module.exports = {
                     //no error
                     if (resp.statusCode === 200) {
                         var getresult = JSON.parse(resp.body);
-                        //console.log(getresult);
-                        if (getresult.resultType === "SUCCESS") {
-                            getresult.results[0].data.forEach(function (getstyle) {
-                                garmentstyles.push(getstyle);
-                            });                            
+                        if (getresult.resultType === "SUCCESS" && getresult.exceptionDetail == null) {
+                            getresult.results[0].data.forEach(function (gettrim) {
+                                trims.push(gettrim);
+                            });
                         }
                     }
                 });
 
-            setTimeout(() => resolve(garmentstyles), 1000);
+            setTimeout(() => resolve(trims), 1000);
         });
     }
 };
