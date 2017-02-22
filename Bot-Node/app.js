@@ -1,9 +1,17 @@
 var restify = require('restify');
 var builder = require('botbuilder');
+var winston = require('winston');
 
 var StyleSearchHelper = require('./service/garment_style_search');
 var FabricSearchHelper = require('./service/fabric_search');
 var TrimSearchHelper = require('./service/trim_search');
+
+var logger = new (winston.Logger)({
+    transports: [
+      new (winston.transports.Console)(),
+      new (winston.transports.File)({ filename: './log/bot.log' })
+    ]
+  });
 
 //=========================================================
 // Bot Setup
@@ -17,8 +25,8 @@ server.listen(process.env.port || process.env.PORT || 3978, function () {
 
 // Create chat bot
 var connector = new builder.ChatConnector({
-    appId: process.env.MICROSOFT_APP_ID,
-    appPassword: process.env.MICROSOFT_APP_PASSWORD
+    appId: "63e90b31-5983-42cc-b4f4-ed5bffb95b98",
+    appPassword: "7o4rYURkhH9Fuvf4TxYiswk"
 });
 var bot = new builder.UniversalBot(connector);
 server.post('/api/messages', connector.listen());
@@ -34,7 +42,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
     .matches('SearchGarmentStyle', [
         function (session, args, next) {
             session.send('hi ,we are analyzing your message: \'%s\' for search garment style', session.message.text);
-
+            logger.log('info','start Luis Intent SearchGarmentStyle from [%s]',session.message.text);
             // try extracting entities
             var garmentStyleEntity = builder.EntityRecognizer.findEntity(args.entities, 'GarmentStyleNo');
             if (garmentStyleEntity) {
@@ -89,7 +97,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
     .matches('SearchFabric', [
         function (session, args, next) {
             session.send('hi ,we are analyzing your message: \'%s\' for search fabric', session.message.text);
-
+            logger.log('info','start Luis Intent SearchFabric from [%s]',session.message.text);
             // try extracting entities
             var fabricEntity = builder.EntityRecognizer.findEntity(args.entities, 'FabricNo');
             if (fabricEntity) {
@@ -132,7 +140,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
     .matches('SearchTrim', [
         function (session, args, next) {
             session.send('hi ,we are analyzing your message: \'%s\' for search trim', session.message.text);
-
+            logger.log('info','start Luis Intent SearchTrim from [%s]',session.message.text);
             // try extracting entities
             var trimEntity = builder.EntityRecognizer.findEntity(args.entities, 'TrimNo');
             if (trimEntity) {
@@ -175,6 +183,7 @@ bot.dialog('/', new builder.IntentDialog({ recognizers: [recognizer] })
     .matches('Hello', builder.DialogAction.send('hi! try asking me things like \'search germent style XXX\', \'search style XXX\' or \'style XXX\''))
     .onDefault((session) => {
         session.send('sorry , i have no idea what you talking about.\"%s\"', session.message.text);
+        logger.log('info','start Luis None Intent from [%s]',session.message.text);
     }));
 
 
